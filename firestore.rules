@@ -1,0 +1,26 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /dishes/{dishId} {
+      // Anyone with the link can see the list
+      allow read: if true;
+
+      // Each dish can be claimed once, by a signed-in (anonymous) guest
+      allow create: if request.auth != null
+        && dishId.size() <= 120
+        && request.resource.data.keys().hasOnly(['dish', 'course', 'who', 'note', 'ownerId', 'createdAt'])
+        && request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.dish is string
+        && request.resource.data.dish.size() > 0 && request.resource.data.dish.size() <= 80
+        && request.resource.data.who is string
+        && request.resource.data.who.size() > 0 && request.resource.data.who.size() <= 60
+        && request.resource.data.note is string && request.resource.data.note.size() <= 80
+        && request.resource.data.course in ['Main', 'Side', 'Bread', 'Salad', 'Appetizer', 'Dessert', 'Drinks']
+        && request.resource.data.createdAt is number;
+
+      // No editing someone else's claim; you can only remove your own
+      allow update: if false;
+      allow delete: if request.auth != null && resource.data.ownerId == request.auth.uid;
+    }
+  }
+}
